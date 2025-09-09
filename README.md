@@ -26,4 +26,8 @@ dentro de un WebView y abre fuera de la app los enlaces a **Google Maps, WhatsA
 - Cambia la URL en `MainActivity.kt` (constante `HOME_URL`).
 
 ## Licencia
-[![CC BY-NC-SA 4.0](https://github.com/user-attachments/assets/d496cf45-2674-44b6-8340-0af96f747d42)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">
+  <img src="https://github.com/user-attachments/assets/d496cf45-2674-44b6-8340-0af96f747d42"
+       alt="CC BY-NC-SA 4.0" width="280">
+</a>
+
