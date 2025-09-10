@@ -25,6 +25,9 @@ dentro de un WebView y abre fuera de la app los enlaces a **Google Maps, WhatsA
 - Cambia el color principal en `app/src/main/res/values/colors.xml`.
 - Cambia la URL en `MainActivity.kt` (constante `HOME_URL`).
 
+# Buscador aabogota.com
+
+La app lo que hace es conectarse  al [[aa_buscador_directorio]] que se configuró en la página  principal. 
 ## Licencia
 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">
   <img src="https://github.com/user-attachments/assets/d496cf45-2674-44b6-8340-0af96f747d42"
