@@ -513,36 +513,44 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
   }
 </style>
 
-<!--estilo fondo blanco-->
+<!-- Estilo fondo blanco: fuerza modo claro dentro del panel -->
 <style>
-/* Fuerza esquema claro dentro del recuadro */
-.aa-panel { color-scheme: light; }
+  /* Aplica esquema claro al panel y a todos sus hijos */
+  .aa-panel, .aa-panel * { color-scheme: light !important; }
 
-/* Colores explícitos para que el navegador no los invierta */
-.aa-panel, .aa-panel .aa-card, .aa-panel .aa-input, .aa-panel .aa-clear, .aa-panel .aa-fullbtn,
-.aa-panel #aa-results, .aa-panel #aa-err {
-  background-color: #fff !important;
-  color: #0f172a !important;
-  border-color: #e5e7eb !important;
-}
+  /* Colores explícitos para evitar inversión en auto–dark */
+  .aa-panel,
+  .aa-panel .aa-card,
+  .aa-panel .aa-input,
+  .aa-panel .aa-clear,
+  .aa-panel .aa-fullbtn,
+  .aa-panel #aa-results,
+  .aa-panel #aa-err {
+    background-color: #fff !important;
+    color: #0f172a !important;
+    border-color: #e5e7eb !important;
+  }
 
-/* Placeholder visible */
-.aa-panel .aa-input::placeholder { color: #6b7280 !important; }
+  /* Placeholder visible */
+  .aa-panel .aa-input::placeholder { color: #6b7280 !important; }
 
-/* Autofill (Android/iOS) — evita fondo oscuro o amarillo ilegible */
-.aa-panel input:-webkit-autofill {
-  -webkit-text-fill-color: #0f172a !important;
-  -webkit-box-shadow: 0 0 0px 1000px #fff inset !important;
-  box-shadow: 0 0 0px 1000px #fff inset !important;
-  caret-color: #0f172a !important;
-}
+  /* Autofill (Android/iOS) legible */
+  .aa-panel input:-webkit-autofill {
+    -webkit-text-fill-color: #0f172a !important;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+    box-shadow: 0 0 0 1000px #fff inset !important;
+    caret-color: #0f172a !important;
+  }
 
-/* Botón “limpiar” y tarjetas coherentes */
-.aa-panel .aa-clear { background:#fff !important; }
-.aa-panel .aa-card  { border:1px solid #e5e7eb !important; box-shadow: 0 2px 12px rgba(15,23,42,.04) !important; }
+  /* Tarjetas y botón limpiar coherentes */
+  .aa-panel .aa-clear { background:#fff !important; }
+  .aa-panel .aa-card  { border:1px solid #e5e7eb !important; box-shadow: 0 2px 12px rgba(15,23,42,.04) !important; }
 
-/* Mensaje de error legible en claro */
-.aa-panel #aa-err { background:#ffe8e8 !important; border-color:#f2b1b1 !important; color:#8a1c1c !important; }
+  /* Mensaje de error legible */
+  .aa-panel #aa-err { background:#ffe8e8 !important; border-color:#f2b1b1 !important; color:#8a1c1c !important; }
+
+  /* Evita que algunos navegadores apliquen filtros al iframe del mapa */
+  .aa-panel iframe { filter: none !important; }
 </style>
 ```
 
