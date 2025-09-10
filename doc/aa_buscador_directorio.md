@@ -19,8 +19,8 @@ Este documento resume **lo que ya quedó funcionando** y **cómo mantenerlo**.
 - **API (Apps Script Web App)**: lee la hoja de cálculo **directamente** por `spreadsheetId + gid` y devuelve JSON.  
   - URL de la Web App (tu endpoint): **`URL GOOGLE CSV`**
   - Lee la pestaña de Google Sheets:
-    - `spreadsheetId`: `1d-r6f9cJGUHwJJE_83q8a8F-UBMuiYkNATSeQ5vSwmA`
-    - `gid`: `45989746`
+    - `spreadsheetId`: `ID GOOGLE`
+    - `gid`: `4598****`
 - **Front (código del blog)**: caja de búsqueda, tarjetas, mapa previo embebido y botón **IR** (que abre el **link exacto** que pusiste en la columna **UBICACION**).
 
 ---
@@ -60,7 +60,7 @@ const SHEETS_SOURCE = {
 ### 3.2 Actualizar el front (blog)
 En el HTML deja:
 ```js
-const API_URL = 'https://script.google.com/macros/s/AKfycbzanBe_LdN8Kyg7WeWW-613wh1J79VmWApP3pshmRZ8UOJs7YtcF-BIM_yCwBvab4ts/exec';
+const API_URL = 'URL IMPLEMENTACION';
 ```
 
 ---
