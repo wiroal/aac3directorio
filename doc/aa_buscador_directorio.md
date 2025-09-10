@@ -314,126 +314,143 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
     }
   </style>
 
-  <script>
-  (function(){
-    // URL de tu Web App
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzanBe_LdN8Kyg7WeWW-613wh1J79VmWApP3pshmRZ8UOJs7YtcF-BIM_yCwBvab4ts/exec';
-    const MIN_CHARS = 2;
-    const FORCE_NOCACHE = true;
+ <script>
+(function(){
+  // URL de tu Web App (déjala igual si ya te funciona)
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzanBe_LdN8Kyg7WeWW-613wh1J79VmWApP3pshmRZ8UOJs7YtcF-BIM_yCwBvab4ts/exec';
+  const MIN_CHARS = 2;
+  const FORCE_NOCACHE = true;
 
-    const $=s=>document.querySelector(s);
-    const q=$('#aa-q'), clearBtn=$('#aa-clear'), cnt=$('#aa-count'), out=$('#aa-results'), err=$('#aa-err');
-    let t=null, ctl=null;
+  const $=s=>document.querySelector(s);
+  const q=$('#aa-q'), clearBtn=$('#aa-clear'), cnt=$('#aa-count'), out=$('#aa-results'), err=$('#aa-err');
 
-    async function buscar(term){
-      if(ctl) ctl.abort(); ctl=new AbortController();
-      let url = API_URL + (API_URL.includes('?')?'&':'?')
-              + 'q=' + encodeURIComponent(term)
-              + '&min=' + MIN_CHARS
-              + (FORCE_NOCACHE ? '&nocache=1' : '');
-      const r = await fetch(url, {signal: ctl.signal, cache:'no-store'});
-      if(!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
+  let timer=null, ctl=null, reqId=0, ticker=null;
+
+  // ===== utilidades =====
+  function startLoading(){
+    stopLoading();
+    err.style.display='none';
+    let i=0;
+    ticker = setInterval(()=>{
+      const dots = '.'.repeat((i++ % 3)+1);
+      cnt.textContent = 'Buscando grupos' + dots;
+    }, 320);
+  }
+  function stopLoading(){
+    if(ticker){ clearInterval(ticker); ticker=null; }
+  }
+  const escapeHTML = s => (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  const escapeAttr = s => (s||'').replace(/"/g,'&quot;');
+
+  async function buscar(term, signal){
+    let url = API_URL + (API_URL.includes('?')?'&':'?')
+            + 'q=' + encodeURIComponent(term)
+            + '&min=' + MIN_CHARS
+            + (FORCE_NOCACHE ? '&nocache=1' : '');
+    const r = await fetch(url, {signal, cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+
+  function linkifyContact(s){
+    if(!s) return '';
+    if(/^https?:/i.test(s)) return `<a href="${escapeAttr(s)}" target="_blank" rel="noopener">${escapeHTML(s)}</a>`;
+    const re=/(\+?\d[\d\s().\-]{6,}\d)/g; let out='', last=0, m;
+    while((m=re.exec(s))!==null){
+      out += escapeHTML(s.slice(last,m.index));
+      const raw = m[1].trim(); const tel = raw.replace(/[^\d+]/g,'');
+      out += `<a href="tel:${escapeAttr(tel)}">${escapeHTML(raw)}</a>`;
+      last = m.index + m[1].length;
     }
+    out += escapeHTML(s.slice(last));
+    return out;
+  }
+  function fieldRow(e,label,html){ const val=(html&&String(html).trim())?html:'-';
+    return `<div class="aa-row"><span class="aa-label">${e} ${label}:</span> ${val}</div>`;
+  }
 
-    const escapeHTML = s => (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-    const escapeAttr = s => (s||'').replace(/"/g,'&quot;');
-
-    function linkifyContact(s){
-      if(!s) return '';
-      if(/^https?:/i.test(s)) return `<a href="${escapeAttr(s)}" target="_blank" rel="noopener">${escapeHTML(s)}</a>`;
-      const re=/(\+?\d[\d\s().\-]{6,}\d)/g;
-      let out='', last=0, m;
-      while((m=re.exec(s))!==null){
-        out += escapeHTML(s.slice(last,m.index));
-        const raw = m[1].trim();
-        const tel = raw.replace(/[^\d+]/g,'');
-        out += `<a href="tel:${escapeAttr(tel)}">${escapeHTML(raw)}</a>`;
-        last = m.index + m[1].length;
+  // Mapa embebido y botón IR (como ya lo tenías)
+  function buildEmbedURL(o){
+    let q = '';
+    const u = (o.ubicacion || '').trim();
+    try{
+      if (u) {
+        const url = new URL(u);
+        if (url.hostname.includes('google.com')) {
+          q = url.searchParams.get('query') || url.searchParams.get('q') || '';
+        }
       }
-      out += escapeHTML(s.slice(last));
-      return out;
+    }catch(e){}
+    if (!q) {
+      const dir = (o.direccion || '').trim();
+      q = dir ? `${dir}, Bogotá, Colombia` : (o.grupo || 'AA Bogotá');
     }
+    return 'https://www.google.com/maps?output=embed&q=' + encodeURIComponent(q);
+  }
+  function mapClickURL(o){
+    const u = (o.ubicacion||'').trim();
+    if (u && /^https?:/i.test(u)) return u;
+    const dir = (o.direccion||'').trim();
+    const q = dir ? `${dir}, Bogotá, Colombia` : (o.grupo||'AA Bogotá');
+    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+  }
 
-    function fieldRow(emoji,label,html){
-      const val = (html && String(html).trim()) ? html : '-';
-      return `<div class="aa-row"><span class="aa-label">${emoji} ${label}:</span> ${val}</div>`;
+  function card(o){
+    const contactoHTML = linkifyContact(o.contacto);
+    const embed = buildEmbedURL(o);
+    const irURL = mapClickURL(o);
+    return `<article class="aa-card">
+      <div class="aa-title">🏷️ ${escapeHTML(o.grupo || '(Sin nombre)')}</div>
+      ${fieldRow('🗺️','Distrito',  escapeHTML(o.distrito))}
+      ${fieldRow('📍','Dirección', escapeHTML(o.direccion))}
+      ${fieldRow('📅','Reuniones', escapeHTML(o.reuniones))}
+      ${fieldRow('📞','Número de contacto', contactoHTML)}
+      <div class="aa-mapwrap">
+        <iframe class="aa-map" src="${escapeAttr(embed)}" loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade" aria-label="Mapa de ubicación"></iframe>
+      </div>
+      <div class="aa-cta">
+        <a class="aa-ir" href="${escapeAttr(irURL)}" target="_blank" rel="noopener">🗺️ IR</a>
+      </div>
+    </article>`;
+  }
+
+  // ===== buscador =====
+  function render(term){
+    clearTimeout(timer);
+    if(term.length < MIN_CHARS){
+      out.innerHTML=''; stopLoading(); cnt.textContent='Escribe para buscar.'; err.style.display='none'; return;
     }
+    timer = setTimeout(async ()=>{
+      const thisId = ++reqId;
+      if(ctl) ctl.abort();
+      ctl = new AbortController();
+      startLoading();
 
-    // --- IFRAME: usa 'query' o 'q' de la URL larga; si no, usa la dirección ---
-    function buildEmbedURL(o){
-      let q = '';
-      const u = (o.ubicacion || '').trim();
       try{
-        if (u) {
-          const url = new URL(u);
-          if (url.hostname.includes('google.com')) {
-            q = url.searchParams.get('query') || url.searchParams.get('q') || '';
-          }
-        }
-      }catch(e){/* links cortos no parsean; ignorar */}
-      if (!q) {
-        const dir = (o.direccion || '').trim();
-        q = dir ? `${dir}, Bogotá, Colombia` : (o.grupo || 'AA Bogotá');
+        const data = await buscar(term, ctl.signal);
+        if(thisId !== reqId) return; // respuesta vieja → ignorar
+        if(!data.ok) throw new Error(data.error || 'Error');
+        const arr = data.results || [];
+        out.innerHTML = arr.map(card).join('');
+        stopLoading();
+        cnt.textContent = `Resultados: ${arr.length}`;
+      }catch(e){
+        // Ignorar abortos (tecleando rápido); no mostramos error rojo
+        if (e.name === 'AbortError' || /aborted/i.test(e.message)) return;
+        // Para errores reales mostramos un mensaje suave mientras reintenta
+        stopLoading();
+        cnt.textContent = 'Buscando grupos…';
+        err.style.display = 'none';
+        out.innerHTML = '';
       }
-      return 'https://www.google.com/maps?output=embed&q=' + encodeURIComponent(q);
-    }
+    }, 200);
+  }
 
-    // BOTÓN IR: respeta exactamente el link del CSV
-    function mapClickURL(o){
-      const u = (o.ubicacion||'').trim();
-      if (u && /^https?:/i.test(u)) return u;
-      const dir = (o.direccion||'').trim();
-      const q = dir ? `${dir}, Bogotá, Colombia` : (o.grupo||'AA Bogotá');
-      return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
-    }
-
-    function card(o){
-      const contactoHTML = linkifyContact(o.contacto);
-      const embed = buildEmbedURL(o);
-      const irURL = mapClickURL(o);
-
-      return `<article class="aa-card">
-        <div class="aa-title">🏷️ ${escapeHTML(o.grupo || '(Sin nombre)')}</div>
-        ${fieldRow('🗺️','Distrito', escapeHTML(o.distrito))}
-        ${fieldRow('📍','Dirección', escapeHTML(o.direccion))}
-        ${fieldRow('📅','Reuniones', escapeHTML(o.reuniones))}
-        ${fieldRow('📞','Número de contacto', contactoHTML)}
-        <div class="aa-mapwrap">
-          <iframe class="aa-map" src="${escapeAttr(embed)}" loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade" aria-label="Mapa de ubicación"></iframe>
-        </div>
-        <div class="aa-cta">
-          <a class="aa-ir" href="${escapeAttr(irURL)}" target="_blank" rel="noopener">🗺️ IR</a>
-        </div>
-      </article>`;
-    }
-
-    function render(term){
-      clearTimeout(t);
-      if(term.length < MIN_CHARS){ out.innerHTML=''; cnt.textContent='Escribe para buscar.'; err.style.display='none'; return; }
-      cnt.textContent='Buscando…';
-      t=setTimeout(async ()=>{
-        try{
-          const data = await buscar(term);
-          if(!data.ok) throw new Error(data.error||'Error');
-          const arr = data.results || [];
-          out.innerHTML = arr.map(card).join('');
-          cnt.textContent = `Resultados: ${arr.length}`;
-          err.style.display='none';
-        }catch(e){
-          err.style.display='block';
-          err.textContent='No se pudo buscar: ' + e.message;
-          cnt.textContent='Error';
-          out.innerHTML='';
-        }
-      }, 200);
-    }
-
-    q.addEventListener('input', ()=>render(q.value.trim()));
-    clearBtn.addEventListener('click', ()=>{ q.value=''; render(''); q.focus(); });
-  })();
-  </script>
+  q.addEventListener('input', ()=>render(q.value.trim()));
+  clearBtn.addEventListener('click', ()=>{ q.value=''; render(''); q.focus(); });
+})();
+</script>
 
   <div class="aa-footer">
     <a class="aa-fullbtn" href="https://www.aabogota.com/p/reuniones-virtuales-grupos-aa-bogota.html" rel="noopener" target="_blank">
