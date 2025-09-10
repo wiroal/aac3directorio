@@ -27,7 +27,7 @@ dentro de un WebView y abre fuera de la app los enlaces a **Google Maps, WhatsA
 
 # Buscador aabogota.com
 
-La app lo que hace es conectarse  al [[aa_buscador_directorio]] que se configuró en la página  principal. 
+La app lo que hace es conectarse  al [[aa_buscador_directorio]] que se configuró en la página  principal. [Ver tutorial para configurar el buscador en el blog](https://github.com/wiroal/aac3directorio/blob/main/doc/aa_buscador_directorio.md). 
 ## Licencia
 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">
   <img src="https://github.com/user-attachments/assets/d496cf45-2674-44b6-8340-0af96f747d42"
