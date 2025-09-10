@@ -47,6 +47,15 @@ Encabezados recomendados (la API detecta variantes):
 ### 3.1 Cambiar de hoja o pestaña
 Edita en el código de la API (Apps Script) solo esta parte:
 
+a) Actualizaciones del CSV
+
+b) Sube cambios por Drive → Gestionar versiones → Subir versión nueva (así mantienes el mismo ID).
+
+c) La API ya detecta charset, pero si puedes exporta como CSV (UTF-8)
+
+d) Si no actualiza, abre la API y crea una nueva versión de la implementación, a veces se pega en la versión anterio y no se ven los cambios 
+
+
 ```js
 const SHEETS_SOURCE = {
   spreadsheetId: 'ESTA EN EL CSV',
