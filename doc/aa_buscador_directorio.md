@@ -140,8 +140,8 @@ const CACHE_MINUTES = 0; // 0 = sin caché mientras depuras
 
 // <<< TU HOJA CORRECTA >>>
 const SHEETS_SOURCE = {
-  spreadsheetId: '1d-r6f9cJGUHwJJE_83q8a8F-UBMuiYkNATSeQ5vSwmA', // ID de la URL
-  gid: 45989746                                            // GID de la URL
+  spreadsheetId: 'id darchivo csv', // ID de la URL
+  gid: 459***                                            // GID de la URL
 };
 /** ========================== **/
 
@@ -317,7 +317,7 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
  <script>
 (function(){
   // URL de tu Web App (déjala igual si ya te funciona)
-  const API_URL = 'https://script.google.com/macros/s/AKfycbzanBe_LdN8Kyg7WeWW-613wh1J79VmWApP3pshmRZ8UOJs7YtcF-BIM_yCwBvab4ts/exec';
+  const API_URL = 'URL IMPLEMENTACIONc';
   const MIN_CHARS = 2;
   const FORCE_NOCACHE = true;
 
