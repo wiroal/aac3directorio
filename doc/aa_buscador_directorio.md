@@ -133,135 +133,190 @@ const API_URL = 'URL IMPLEMENTACION';
 Pégalo entero en tu proyecto de Apps Script (Web App). Ya apunta a tu hoja correcta `(spreadsheetId + gid)`. Luego *Deploy → Web app*.
 
 ```js
-/** ========= CONFIG ========= **/
-const MIN_CHARS     = 2;
-const MAX_RESULTS   = 100;
-const CACHE_MINUTES = 0; // 0 = sin caché mientras depuras
+/************** CONFIG **************/
+const CSV_FILE_ID = '1A6x9rYPkEsKyan0Fr2GLBVJqsFVrlcbf'; // ID del CSV en Drive
+const MAX_RESULTS = 100;
+const SEARCH_IN   = ['grupo','direccion','distrito','reuniones','contacto']; // campos para buscar
+const API_VERSION = '2025-09-10_aa_csv_utf_fix_v1';
+/************ FIN CONFIG ************/
 
-// <<< TU HOJA CORRECTA >>>
-const SHEETS_SOURCE = {
-  spreadsheetId: 'id darchivo csv', // ID de la URL
-  gid: 459***                                            // GID de la URL
-};
-/** ========================== **/
-
-// Normalización
-const nkey = s => (s||'').toString()
+/* ========== Helpers de normalización ========== */
+const normKey = s => (s||'').toString()
   .normalize('NFD').replace(/\p{Diacritic}/gu,'')
   .toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
-const ntxt = s => (s||'').toString().normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
 
-// Cabeceras
-function findHeaderIndex(headers, variants){
-  const H = headers.map(nkey);
-  for (const v of variants){
-    const idx = H.indexOf(nkey(v));
-    if (idx >= 0) return idx;
+const norm = s => (s||'').toString()
+  .normalize('NFD').replace(/\p{Diacritic}/gu,'')
+  .toLowerCase().trim();
+
+/* ========== Lectura de CSV con detección de charset ========== */
+// Intenta varios charsets y se queda con el que tenga menos caracteres “�”
+function decodeBlobText_(blob){
+  const charsets = ['UTF-8', 'windows-1252', 'ISO-8859-1'];
+  let best = { text: '', charset: 'UTF-8', score: 1e9 };
+  for (const cs of charsets){
+    try{
+      const t = blob.getDataAsString(cs);
+      const bad = (t.match(/\uFFFD/g) || []).length; // “carácter de reemplazo”
+      if (bad < best.score) best = { text: t, charset: cs, score: bad };
+    }catch(err){ /* ignora charset no soportado */ }
   }
-  return -1;
+  return best; // -> {text, charset, score}
 }
 
-// Abrir pestaña por GID
-function getSheetByGid_(ss, gid){
-  const target = Number(gid);
-  for (const sh of ss.getSheets()){
-    if (sh.getSheetId() === target) return sh;
-  }
-  return null;
+// Lee SIEMPRE la versión vigente del CSV (misma ID) y devuelve texto limpio
+function csvMeta_(fileId){
+  const file = DriveApp.getFileById(fileId);
+  const blob = file.getBlob();
+  const dec  = decodeBlobText_(blob);
+  // quita posible BOM
+  let text = dec.text.replace(/^\uFEFF/, '');
+  return {
+    file,
+    blob,
+    text,
+    charset: dec.charset,
+    lastUpdated: file.getLastUpdated(),
+    size: blob.getBytes().length
+  };
 }
 
-// Leer valores (sin CSV)
-function readSheetValues_(){
-  const ss = SpreadsheetApp.openById(SHEETS_SOURCE.spreadsheetId);
-  const sh = getSheetByGid_(ss, SHEETS_SOURCE.gid);
-  if (!sh) throw new Error('No se encontró la pestaña GID=' + SHEETS_SOURCE.gid);
-  return sh.getDataRange().getDisplayValues();
+/* ========== Utilidades de CSV ========== */
+// Detecta separador ; , o tab
+function guessSep(text){
+  const head = text.split('\n').slice(0,5).join('\n');
+  const counts = {
+    ';' : (head.match(/;/g)  || []).length,
+    ',' : (head.match(/,/g)  || []).length,
+    '\t': (head.match(/\t/g) || []).length
+  };
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] || ',';
 }
 
-// Cache simple
-function getCache_(k){ if (!CACHE_MINUTES) return null;
-  const r = CacheService.getScriptCache().get(k); return r ? JSON.parse(r) : null; }
-function putCache_(k,o){ if (!CACHE_MINUTES) return;
-  CacheService.getScriptCache().put(k, JSON.stringify(o), CACHE_MINUTES*60); }
-
-// Helpers distrito
-function normDistString(s){ const t=ntxt(s||'').replace(/\s+/g,''); return t.replace(/^distrito/,'d'); }
-function isDistrictQuery(q){ return /^d\d+$/i.test(normDistString(q)); }
-
-// API
-function doGet(e){
-  try{
-    const q        = ntxt(e?.parameter?.q || '');
-    const minChars = parseInt(e?.parameter?.min || String(MIN_CHARS), 10);
-    const nocache  = String(e?.parameter?.nocache||'') === '1';
-
-    if (String(e?.parameter?.clearcache||'')==='1'){
-      CacheService.getScriptCache().remove('sheet_cache_v1');
-      return json({ok:true, cleared:true});
-    }
-
-    let values = !nocache ? getCache_('sheet_cache_v1') : null;
-    if (!values){ values = readSheetValues_(); putCache_('sheet_cache_v1', values); }
-    if (!values || values.length < 2) return json({ok:true, total:0, results:[]});
-
-    const headers = values[0].map(v => (v||'').toString().trim());
-    const iDistrito = findHeaderIndex(headers, ['distrito','dist']);
-    const iGrupo    = findHeaderIndex(headers, ['grupo','nombre','nombre del grupo']);
-    const iDir      = findHeaderIndex(headers, ['direccion','dirección','dir']);
-    const iReun     = findHeaderIndex(headers, ['reuniones','reunion','reunión','horarios','calendario','dias','días']);
-    const iCont     = findHeaderIndex(headers, ['numero de contacto','número de contacto','contacto','telefono','teléfono','celular','whatsapp','wa']);
-    const iUbi      = findHeaderIndex(headers, ['ubicacion','ubicación','mapa','link','url']);
-
-    if (e?.parameter?.debug === 'headers')
-      return json({ok:true, headers, map:{iDistrito,iGrupo,iDir,iReun,iCont,iUbi}});
-    if (e?.parameter?.ping) return json({ok:true, ping:true});
-
-    const rows = [];
-    for (let r=1; r<values.length; r++){
-      const row = values[r]||[];
-      const distrito  = iDistrito>=0 ? (row[iDistrito]||'').toString().trim() : '';
-      const grupo     = iGrupo   >=0 ? (row[iGrupo]   ||'').toString().trim() : '';
-      const direccion = iDir     >=0 ? (row[iDir]     ||'').toString().trim() : '';
-      const reuniones = iReun    >=0 ? (row[iReun]    ||'').toString().trim() : '';
-      const contacto  = iCont    >=0 ? (row[iCont]    ||'').toString().trim() : '';
-      let   ubicacion = iUbi     >=0 ? (row[iUbi]     ||'').toString().trim() : '';
-
-      if (!ubicacion && direccion){
-        ubicacion = 'https://www.google.com/maps/search/?api=1&query=' +
-                    encodeURIComponent(direccion + ', Bogotá, Colombia');
-      }
-      if(!(distrito||grupo||direccion||reuniones||contacto||ubicacion)) continue;
-      rows.push({ distrito, grupo, direccion, reuniones, contacto, ubicacion });
-      if (rows.length > 5000) break;
-    }
-
-    if (!q || q.length < minChars) return json({ok:true, total:rows.length, results:[]});
-
-    const results = [];
-    if (isDistrictQuery(q)){
-      const qd = normDistString(q), qnum = qd.replace(/^d/,'');
-      for (const o of rows){
-        const d = normDistString(o.distrito||''); const dnum = d.replace(/^d/,'');
-        if (d===qd || dnum===qnum){ results.push(o); if (results.length>=MAX_RESULTS) break; }
-      }
+// Parser CSV simple (comillas y separador configurable)
+function parseCSV(text, sep){
+  const rows = [];
+  let row = [], cur = '', inQuotes = false;
+  for (let i=0; i<text.length; i++){
+    const ch = text[i], next = text[i+1];
+    if (inQuotes){
+      if (ch === '"'){
+        if (next === '"'){ cur += '"'; i++; } else { inQuotes = false; }
+      } else { cur += ch; }
     } else {
-      for (const o of rows){
-        const hay = [o.grupo,o.direccion,o.distrito,o.reuniones,o.contacto,o.ubicacion]
-          .some(v => ntxt(v).includes(q));
-        if (hay){ results.push(o); if (results.length>=MAX_RESULTS) break; }
-      }
+      if (ch === '"'){ inQuotes = true; }
+      else if (ch === sep){ row.push(cur); cur=''; }
+      else if (ch === '\r'){ /* skip */ }
+      else if (ch === '\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
+      else { cur += ch; }
     }
-
-    return json({ok:true, total:rows.length, results});
-  }catch(err){
-    return json({ok:false, error:'Error: '+err.message});
   }
+  row.push(cur); rows.push(row);
+  while (rows.length && rows[rows.length-1].every(c => !String(c||'').trim())) rows.pop();
+  // quita BOM en el primer campo de la primera fila
+  if (rows.length && rows[0].length) rows[0][0] = String(rows[0][0]).replace(/^\uFEFF/, '');
+  return rows;
+}
+
+// Mapea encabezados -> índices (acepta variantes/español)
+function mapHeaders(headers){
+  const H = headers.map(normKey);
+  const pick = (...aliases) => H.findIndex(h => aliases.map(normKey).includes(h));
+  return {
+    distrito : pick('distrito','dist'),
+    grupo    : pick('grupo','nombre','nombre del grupo'),
+    direccion: pick('direccion','dirección','dir','direc','address'),
+    reuniones: pick('reuniones','reunion','reunión','horarios','calendario','dias','días'),
+    contacto : pick('numero de contacto','número de contacto','contacto','telefono','teléfono','celular','whatsapp','wa'),
+    ubicacion: pick('maps','mapa','ubicacion','ubicación','google maps','url mapa','link mapa')
+  };
 }
 
 function json(obj){
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+/* ========== Web App ========== */
+function doGet(e){
+  try{
+    const q        = norm(e?.parameter?.q || '');
+    const minChars = parseInt(e?.parameter?.min || '2', 10);
+
+    // 1) Lee la versión actual del CSV
+    const meta = csvMeta_(CSV_FILE_ID);
+
+    // ---- Endpoints de diagnóstico ----
+    if (e?.parameter?.debug === 'meta'){
+      return json({
+        ok: true,
+        apiVersion: API_VERSION,
+        fileLastUpdated: meta.lastUpdated,
+        sizeBytes: meta.size,
+        charsetUsed: meta.charset
+      });
+    }
+    if (e?.parameter?.debug === 'sample'){
+      const sepS  = guessSep(meta.text);
+      const rowsS = parseCSV(meta.text, sepS);
+      return json({
+        ok: true,
+        apiVersion: API_VERSION,
+        sep: sepS,
+        rows: rowsS.length,
+        headers: rowsS[0],
+        firstDataRow: rowsS[1] || null,
+        charsetUsed: meta.charset
+      });
+    }
+
+    // 2) Parsea CSV y mapea columnas
+    const sep  = guessSep(meta.text);
+    const rows = parseCSV(meta.text, sep);
+    if (!rows.length) return json({ ok:true, apiVersion: API_VERSION, total:0, results:[] });
+
+    const headers = rows[0].map(v => (v||'').toString());
+    const map     = mapHeaders(headers);
+
+    // 3) Convierte filas en objetos homogéneos
+    const data = [];
+    for (let i=1; i<rows.length; i++){
+      const r = rows[i]; if (!r) continue;
+      const val = (idx)=> idx>=0 && idx<r.length ? String(r[idx]||'').trim() : '';
+      const o = {
+        distrito : val(map.distrito),
+        grupo    : val(map.grupo),
+        direccion: val(map.direccion),
+        reuniones: val(map.reuniones),
+        contacto : val(map.contacto),
+        ubicacion: val(map.ubicacion) // opcional
+      };
+      if (!Object.values(o).some(x => x)) continue; // descarta filas completamente vacías
+      data.push(o);
+    }
+
+    // 4) Comportamiento cuando no hay término suficiente
+    if (!q || q.length < minChars){
+      return json({ ok:true, apiVersion: API_VERSION, total: data.length, results: [] });
+    }
+
+    // 5) Filtro insensible a tildes/mayúsculas
+    const results = [];
+    for (const o of data){
+      const hit = SEARCH_IN.some(k => norm(o[k]).includes(q));
+      if (hit){
+        results.push(o);
+        if (results.length >= MAX_RESULTS) break;
+      }
+    }
+
+    return json({ ok:true, apiVersion: API_VERSION, total: data.length, results });
+
+  }catch(err){
+    return json({ ok:false, apiVersion: API_VERSION, error: 'Error: ' + err });
+  }
+}
+
 ```
 
 # B) HTML del blog — código completo
