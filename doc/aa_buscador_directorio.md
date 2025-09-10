@@ -324,6 +324,9 @@ function doGet(e){
 Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa tu **API_URL** nueva.
 
 ```HTML
+<!--Empieza el buscador-->
+
+
 <!--PANEL con borde azul-->
 <div class="aa-panel">
   <!--Buscador AA Bogotá – versión “bonita” con emojis-->
@@ -369,149 +372,119 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
     }
   </style>
 
- <script>
-(function(){
-  // URL de tu Web App (déjala igual si ya te funciona)
-  const API_URL = 'URL IMPLEMENTACIONc';
-  const MIN_CHARS = 2;
-  const FORCE_NOCACHE = true;
+<!-- Script -->
+  <script>
+  (function(){
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzanBe_LdN8Kyg7WeWW-613wh1J79VmWApP3pshmRZ8UOJs7YtcF-BIM_yCwBvab4ts/exec';
+    const MIN_CHARS = 2; // pon 1 si quieres buscar con una sola letra
 
-  const $=s=>document.querySelector(s);
-  const q=$('#aa-q'), clearBtn=$('#aa-clear'), cnt=$('#aa-count'), out=$('#aa-results'), err=$('#aa-err');
+    document.addEventListener('DOMContentLoaded', function(){
+      const $=s=>document.querySelector(s);
+      const q=$('#aa-q'), clearBtn=$('#aa-clear'), cnt=$('#aa-count'), out=$('#aa-results'), err=$('#aa-err');
+      if(!q||!cnt||!out) return;
 
-  let timer=null, ctl=null, reqId=0, ticker=null;
+      let deb=null, ctl=null, reqId=0, anim=null;
 
-  // ===== utilidades =====
-  function startLoading(){
-    stopLoading();
-    err.style.display='none';
-    let i=0;
-    ticker = setInterval(()=>{
-      const dots = '.'.repeat((i++ % 3)+1);
-      cnt.textContent = 'Buscando grupos' + dots;
-    }, 320);
-  }
-  function stopLoading(){
-    if(ticker){ clearInterval(ticker); ticker=null; }
-  }
-  const escapeHTML = s => (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-  const escapeAttr = s => (s||'').replace(/"/g,'&quot;');
+      const esc=s=>(s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+      const escAttr=s=>(s||'').replace(/"/g,'&quot;');
 
-  async function buscar(term, signal){
-    let url = API_URL + (API_URL.includes('?')?'&':'?')
-            + 'q=' + encodeURIComponent(term)
-            + '&min=' + MIN_CHARS
-            + (FORCE_NOCACHE ? '&nocache=1' : '');
-    const r = await fetch(url, {signal, cache:'no-store'});
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  }
+      function startLoading(){ stopLoading(); err.style.display='none'; let i=0; anim=setInterval(()=>{ cnt.textContent='Buscando grupos' + '.'.repeat((i++%3)+1); },320); }
+      function stopLoading(){ if(anim){ clearInterval(anim); anim=null; } }
 
-  function linkifyContact(s){
-    if(!s) return '';
-    if(/^https?:/i.test(s)) return `<a href="${escapeAttr(s)}" target="_blank" rel="noopener">${escapeHTML(s)}</a>`;
-    const re=/(\+?\d[\d\s().\-]{6,}\d)/g; let out='', last=0, m;
-    while((m=re.exec(s))!==null){
-      out += escapeHTML(s.slice(last,m.index));
-      const raw = m[1].trim(); const tel = raw.replace(/[^\d+]/g,'');
-      out += `<a href="tel:${escapeAttr(tel)}">${escapeHTML(raw)}</a>`;
-      last = m.index + m[1].length;
-    }
-    out += escapeHTML(s.slice(last));
-    return out;
-  }
-  function fieldRow(e,label,html){ const val=(html&&String(html).trim())?html:'-';
-    return `<div class="aa-row"><span class="aa-label">${e} ${label}:</span> ${val}</div>`;
-  }
-
-  // Mapa embebido y botón IR (como ya lo tenías)
-  function buildEmbedURL(o){
-    let q = '';
-    const u = (o.ubicacion || '').trim();
-    try{
-      if (u) {
-        const url = new URL(u);
-        if (url.hostname.includes('google.com')) {
-          q = url.searchParams.get('query') || url.searchParams.get('q') || '';
-        }
+      function buildURL(term){
+        // GET simple sin headers personalizados (evita preflight CORS) + anti-caché
+        return API_URL + (API_URL.includes('?')?'&':'?') +
+               'q=' + encodeURIComponent(term) +
+               '&min=' + MIN_CHARS +
+               '&ts=' + Date.now();
       }
-    }catch(e){}
-    if (!q) {
-      const dir = (o.direccion || '').trim();
-      q = dir ? `${dir}, Bogotá, Colombia` : (o.grupo || 'AA Bogotá');
-    }
-    return 'https://www.google.com/maps?output=embed&q=' + encodeURIComponent(q);
-  }
-  function mapClickURL(o){
-    const u = (o.ubicacion||'').trim();
-    if (u && /^https?:/i.test(u)) return u;
-    const dir = (o.direccion||'').trim();
-    const q = dir ? `${dir}, Bogotá, Colombia` : (o.grupo||'AA Bogotá');
-    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
-  }
 
-  function card(o){
-    const contactoHTML = linkifyContact(o.contacto);
-    const embed = buildEmbedURL(o);
-    const irURL = mapClickURL(o);
-    return `<article class="aa-card">
-      <div class="aa-title">🏷️ ${escapeHTML(o.grupo || '(Sin nombre)')}</div>
-      ${fieldRow('🗺️','Distrito',  escapeHTML(o.distrito))}
-      ${fieldRow('📍','Dirección', escapeHTML(o.direccion))}
-      ${fieldRow('📅','Reuniones', escapeHTML(o.reuniones))}
-      ${fieldRow('📞','Número de contacto', contactoHTML)}
-      <div class="aa-mapwrap">
-        <iframe class="aa-map" src="${escapeAttr(embed)}" loading="lazy"
-          referrerpolicy="no-referrer-when-downgrade" aria-label="Mapa de ubicación"></iframe>
-      </div>
-      <div class="aa-cta">
-        <a class="aa-ir" href="${escapeAttr(irURL)}" target="_blank" rel="noopener">🗺️ IR</a>
-      </div>
-    </article>`;
-  }
+      async function buscar(term, signal){
+        const r = await fetch(buildURL(term), { signal, cache:'no-store' });
+        if(!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }
 
-  // ===== buscador =====
-  function render(term){
-    clearTimeout(timer);
-    if(term.length < MIN_CHARS){
-      out.innerHTML=''; stopLoading(); cnt.textContent='Escribe para buscar.'; err.style.display='none'; return;
-    }
-    timer = setTimeout(async ()=>{
-      const thisId = ++reqId;
-      if(ctl) ctl.abort();
-      ctl = new AbortController();
-      startLoading();
+      function linkifyContact(s){
+        if(!s) return '';
+        if(/^https?:/i.test(s)) return `<a href="${escAttr(s)}" target="_blank" rel="noopener">${esc(s)}</a>`;
+        const re=/(\+?\d[\d\s().\-]{6,}\d)/g; let h='', last=0, m;
+        while((m=re.exec(s))!==null){ h+=esc(s.slice(last,m.index)); const raw=m[1].trim(); const tel=raw.replace(/[^\d+]/g,''); h+=`<a href="tel:${escAttr(tel)}">${esc(raw)}</a>`; last=m.index+m[1].length; }
+        h+=esc(s.slice(last)); return h;
+      }
+      const row=(e,l,h)=>`<div class="aa-row"><span class="aa-label">${e} ${l}:</span> ${(h&&String(h).trim())?h:'-'}</div>`;
 
-      try{
-        const data = await buscar(term, ctl.signal);
-        if(thisId !== reqId) return; // respuesta vieja → ignorar
-        if(!data.ok) throw new Error(data.error || 'Error');
-        const arr = data.results || [];
-        out.innerHTML = arr.map(card).join('');
-        stopLoading();
-        cnt.textContent = `Resultados: ${arr.length}`;
-      }catch(e){
-        // Ignorar abortos (tecleando rápido); no mostramos error rojo
-        if (e.name === 'AbortError' || /aborted/i.test(e.message)) return;
-        // Para errores reales mostramos un mensaje suave mientras reintenta
-        stopLoading();
-        cnt.textContent = 'Buscando grupos…';
+      // Construye mapa a partir de 'ubicacion' (si trae link) o de la 'direccion'
+      function embedURL(o){
+        let q=''; const u=(o.ubicacion||'').trim();
+        try{ if(u){ const url=new URL(u); if(url.hostname.includes('google.com')) q=url.searchParams.get('query')||url.searchParams.get('q')||''; } }catch{}
+        if(!q){ const d=(o.direccion||'').trim(); q=d?`${d}, Bogotá, Colombia`:(o.grupo||'AA Bogotá'); }
+        return 'https://www.google.com/maps?output=embed&q='+encodeURIComponent(q);
+      }
+      function mapClickURL(o){
+        const u=(o.ubicacion||'').trim(); if(u && /^https?:/i.test(u)) return u;
+        const d=(o.direccion||'').trim(); const q=d?`${d}, Bogotá, Colombia`:(o.grupo||'AA Bogotá');
+        return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
+      }
+
+      function card(o){
+        const contacto = linkifyContact(o.contacto);
+        return `<article class="aa-card">
+          <div class="aa-title">🏷️ ${esc(o.grupo||'(Sin nombre)')}</div>
+          ${row('🗺️','Distrito',  esc(o.distrito))}
+          ${row('📍','Dirección', esc(o.direccion))}
+          ${row('📅','Reuniones', esc(o.reuniones))}
+          ${row('📞','Número de contacto', contacto)}
+          <div class="aa-mapwrap"><iframe class="aa-map" src="${escAttr(embedURL(o))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" aria-label="Mapa de ubicación"></iframe></div>
+          <div class="aa-cta"><a class="aa-ir" href="${escAttr(mapClickURL(o))}" target="_blank" rel="noopener">🗺️ IR</a></div>
+        </article>`;
+      }
+
+      function showNoResults(term){
+        cnt.textContent = `No encontramos grupos para “${term}”`;
         err.style.display = 'none';
         out.innerHTML = '';
       }
-    }, 200);
-  }
 
-  q.addEventListener('input', ()=>render(q.value.trim()));
-  clearBtn.addEventListener('click', ()=>{ q.value=''; render(''); q.focus(); });
-})();
-</script>
+      function render(term){
+        clearTimeout(deb);
+        if(term.length < MIN_CHARS){
+          out.innerHTML=''; stopLoading(); cnt.textContent='Escribe para buscar.'; err.style.display='none'; return;
+        }
+        deb=setTimeout(async ()=>{
+          const id=++reqId;
+          if(ctl) ctl.abort();
+          ctl = new AbortController();
+          startLoading();
+          try{
+            const data = await buscar(term, ctl.signal);
+            if(id!==reqId) return; // respuesta vieja
+            if(!data || data.ok!==true) throw new Error('Respuesta inválida');
+            const arr = data.results || [];
+            stopLoading();
+            if(!arr.length) { showNoResults(term); return; }
+            out.innerHTML = arr.map(card).join('');
+            cnt.textContent = `Resultados: ${arr.length}`;
+            err.style.display='none';
+          }catch(e){
+            // Ignora abortos por tecleo rápido
+            if (e.name === 'AbortError' || /aborted/i.test(e.message)) return;
+            stopLoading();
+            cnt.textContent = 'No pudimos consultar la base ahora. Toca para reintentar.';
+            err.style.display='none';
+            out.innerHTML='';
+          }
+        }, 220);
+      }
 
-  <div class="aa-footer">
-    <a class="aa-fullbtn" href="https://www.aabogota.com/p/reuniones-virtuales-grupos-aa-bogota.html" rel="noopener" target="_blank">
-      📚 Ir al directorio completo
-    </a>
-  </div>
+      q.addEventListener('input', ()=>render(q.value.trim()));
+      clearBtn.addEventListener('click', ()=>{ q.value=''; render(''); q.focus(); });
+    });
+  })();
+  </script>
+
+
+
 </div>
 
 <style>
@@ -538,6 +511,38 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
     .aa-panel{ background:#0b0c10; border-color:#1e90ff; box-shadow:0 10px 24px rgba(0,0,0,.3); }
     .aa-panel .aa-fullbtn{ background:#0b0c10; color:#e5e7eb; border-color:#263041; }
   }
+</style>
+
+<!--estilo fondo blanco-->
+<style>
+/* Fuerza esquema claro dentro del recuadro */
+.aa-panel { color-scheme: light; }
+
+/* Colores explícitos para que el navegador no los invierta */
+.aa-panel, .aa-panel .aa-card, .aa-panel .aa-input, .aa-panel .aa-clear, .aa-panel .aa-fullbtn,
+.aa-panel #aa-results, .aa-panel #aa-err {
+  background-color: #fff !important;
+  color: #0f172a !important;
+  border-color: #e5e7eb !important;
+}
+
+/* Placeholder visible */
+.aa-panel .aa-input::placeholder { color: #6b7280 !important; }
+
+/* Autofill (Android/iOS) — evita fondo oscuro o amarillo ilegible */
+.aa-panel input:-webkit-autofill {
+  -webkit-text-fill-color: #0f172a !important;
+  -webkit-box-shadow: 0 0 0px 1000px #fff inset !important;
+  box-shadow: 0 0 0px 1000px #fff inset !important;
+  caret-color: #0f172a !important;
+}
+
+/* Botón “limpiar” y tarjetas coherentes */
+.aa-panel .aa-clear { background:#fff !important; }
+.aa-panel .aa-card  { border:1px solid #e5e7eb !important; box-shadow: 0 2px 12px rgba(15,23,42,.04) !important; }
+
+/* Mensaje de error legible en claro */
+.aa-panel #aa-err { background:#ffe8e8 !important; border-color:#f2b1b1 !important; color:#8a1c1c !important; }
 </style>
 ```
 
