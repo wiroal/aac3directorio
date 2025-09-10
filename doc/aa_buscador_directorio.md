@@ -134,7 +134,7 @@ Pégalo entero en tu proyecto de Apps Script (Web App). Ya apunta a tu hoja corr
 
 ```js
 /************** CONFIG **************/
-const CSV_FILE_ID = '1A6x9rYPkEsKyan0Fr2GLBVJqsFVrlcbf'; // ID del CSV en Drive
+const CSV_FILE_ID = 'Extraer del archivo base csv'; // ID del CSV en Drive
 const MAX_RESULTS = 100;
 const SEARCH_IN   = ['grupo','direccion','distrito','reuniones','contacto']; // campos para buscar
 const API_VERSION = '2025-09-10_aa_csv_utf_fix_v1';
