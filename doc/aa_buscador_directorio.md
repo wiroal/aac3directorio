@@ -412,7 +412,7 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
   
   <script>
 (function(){
-  const API_URL = 'https://script.google.com/macros/s/AKfycbzanBe_LdN8Kyg7WeWW-613wh1J79VmWApP3pshmRZ8UOJs7YtcF-BIM_yCwBvab4ts/exec';
+  const API_URL = 'https://script.google.com******/exec';
   const MIN_CHARS = 2; // 1 si quieres con una sola letra
 
   // Emojis seguros (sin variation selector) generados por Unicode
