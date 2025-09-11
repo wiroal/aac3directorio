@@ -336,6 +336,9 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
 <!--Empieza el buscador-->
 
 
+<!--Empieza el buscador-->
+
+
 <!--PANEL con borde azul-->
 <div class="aa-panel">
   <!--Buscador AA Bogotá – versión “bonita” con emojis-->
@@ -381,119 +384,196 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
     }
   </style>
 
-<!-- Script -->
+  <!-- Estilos extras para alinear IR + Compartir y el botón de WhatsApp -->
+  <style>
+    .aa-cta{display:flex;gap:8px;flex-wrap:wrap} /* ahora muestra los dos botones en fila */
+    .aa-share{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:8px 12px;border-radius:10px;
+      border:1px solid #d1fae5;background:#ecfdf5;
+      text-decoration:none;font-weight:700;color:#065f46;
+    }
+    .aa-share:hover{box-shadow:0 0 0 3px rgba(16,185,129,.15)}
+  </style>
+  
+  <style>
+  /* Poner los botones en fila */
+  .aa-cta{display:flex; gap:8px; flex-wrap:wrap}
+
+  /* Botón Compartir (WhatsApp) */
+  .aa-share{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:8px 12px; border-radius:10px;
+    border:1px solid #d1fae5; background:#ecfdf5;
+    text-decoration:none; font-weight:700; color:#065f46;
+  }
+  .aa-share:hover{ box-shadow:0 0 0 3px rgba(16,185,129,.15) }
+</style>
+
+
+  <!-- Script -->
+  
   <script>
-  (function(){
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzanBe_LdN8Kyg7WeWW-613wh1J79VmWApP3pshmRZ8UOJs7YtcF-BIM_yCwBvab4ts/exec';
-    const MIN_CHARS = 2; // pon 1 si quieres buscar con una sola letra
+(function(){
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzanBe_LdN8Kyg7WeWW-613wh1J79VmWApP3pshmRZ8UOJs7YtcF-BIM_yCwBvab4ts/exec';
+  const MIN_CHARS = 2; // 1 si quieres con una sola letra
 
-    document.addEventListener('DOMContentLoaded', function(){
-      const $=s=>document.querySelector(s);
-      const q=$('#aa-q'), clearBtn=$('#aa-clear'), cnt=$('#aa-count'), out=$('#aa-results'), err=$('#aa-err');
-      if(!q||!cnt||!out) return;
+  // Emojis seguros (sin variation selector) generados por Unicode
+  const E = {
+    compass:  '\u{1F9ED}', // 🧭
+    pin:      '\u{1F4CD}', // 📍
+    map:      '\u{1F5FA}', // 🗺
+    cal:      '\u{1F4C5}', // 📅
+    phone:    '\u{1F4DE}'  // 📞  (evita ☎ + VS-16)
+  };
+  const EN_DASH = '\u2013'; // –
 
-      let deb=null, ctl=null, reqId=0, anim=null;
+  document.addEventListener('DOMContentLoaded', function(){
+    const $=s=>document.querySelector(s);
+    const q=$('#aa-q'), clearBtn=$('#aa-clear'), cnt=$('#aa-count'), out=$('#aa-results'), err=$('#aa-err');
+    if(!q||!cnt||!out) return;
 
-      const esc=s=>(s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-      const escAttr=s=>(s||'').replace(/"/g,'&quot;');
+    let deb=null, ctl=null, reqId=0, anim=null;
 
-      function startLoading(){ stopLoading(); err.style.display='none'; let i=0; anim=setInterval(()=>{ cnt.textContent='Buscando grupos' + '.'.repeat((i++%3)+1); },320); }
-      function stopLoading(){ if(anim){ clearInterval(anim); anim=null; } }
+    const esc=s=>(s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    const escAttr=s=>(s||'').replace(/"/g,'&quot;');
 
-      function buildURL(term){
-        // GET simple sin headers personalizados (evita preflight CORS) + anti-caché
-        return API_URL + (API_URL.includes('?')?'&':'?') +
-               'q=' + encodeURIComponent(term) +
-               '&min=' + MIN_CHARS +
-               '&ts=' + Date.now();
+    function startLoading(){ stopLoading(); err.style.display='none'; let i=0; anim=setInterval(()=>{ cnt.textContent='Buscando grupos' + '.'.repeat((i++%3)+1); },320); }
+    function stopLoading(){ if(anim){ clearInterval(anim); anim=null; } }
+
+    function buildURL(term){
+      return API_URL + (API_URL.includes('?')?'&':'?') +
+             'q=' + encodeURIComponent(term) +
+             '&min=' + MIN_CHARS +
+             '&ts=' + Date.now();
+    }
+
+    async function buscar(term, signal){
+      const r = await fetch(buildURL(term), { signal, cache:'no-store' });
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }
+
+    // Convierte teléfonos a <a href="tel:"> y corrige el último slice
+    function linkifyContact(s){
+      if(!s) return '';
+      if(/^https?:/i.test(s)) return `<a href="${escAttr(s)}" target="_blank" rel="noopener">${esc(s)}</a>`;
+      const re=/(\+?\d[\d\s().\-]{6,}\d)/g; let h='', last=0, m;
+      while((m=re.exec(s))!==null){
+        h += esc(s.slice(last, m.index));
+        const raw=m[1].trim();
+        const tel=raw.replace(/[^\d+]/g,'');
+        h += `<a href="tel:${escAttr(tel)}">${esc(raw)}</a>`;
+        last=m.index+m[1].length;
       }
+      h += esc(s.slice(last));
+      return h;
+    }
 
-      async function buscar(term, signal){
-        const r = await fetch(buildURL(term), { signal, cache:'no-store' });
-        if(!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      }
+    // Limpia entidades HTML y variation selectors (evita &#65039; etc.)
+    function cleanSharePiece(s){
+      return (s||'')
+        .replace(/\uFE0F/g,'')         // quita VS-16
+        .replace(/&#\d+;?/g,'')         // quita entidades numéricas
+        .replace(/&[a-z]+;?/gi,'');     // quita entidades nombradas
+    }
 
-      function linkifyContact(s){
-        if(!s) return '';
-        if(/^https?:/i.test(s)) return `<a href="${escAttr(s)}" target="_blank" rel="noopener">${esc(s)}</a>`;
-        const re=/(\+?\d[\d\s().\-]{6,}\d)/g; let h='', last=0, m;
-        while((m=re.exec(s))!==null){ h+=esc(s.slice(last,m.index)); const raw=m[1].trim(); const tel=raw.replace(/[^\d+]/g,''); h+=`<a href="tel:${escAttr(tel)}">${esc(raw)}</a>`; last=m.index+m[1].length; }
-        h+=esc(s.slice(last)); return h;
-      }
-      const row=(e,l,h)=>`<div class="aa-row"><span class="aa-label">${e} ${l}:</span> ${(h&&String(h).trim())?h:'-'}</div>`;
+    const row=(e,l,h)=>`<div class="aa-row"><span class="aa-label">${e} ${l}:</span> ${(h&&String(h).trim())?h:'-'}</div>`;
 
-      // Construye mapa a partir de 'ubicacion' (si trae link) o de la 'direccion'
-      function embedURL(o){
-        let q=''; const u=(o.ubicacion||'').trim();
-        try{ if(u){ const url=new URL(u); if(url.hostname.includes('google.com')) q=url.searchParams.get('query')||url.searchParams.get('q')||''; } }catch{}
-        if(!q){ const d=(o.direccion||'').trim(); q=d?`${d}, Bogotá, Colombia`:(o.grupo||'AA Bogotá'); }
-        return 'https://www.google.com/maps?output=embed&q='+encodeURIComponent(q);
-      }
-      function mapClickURL(o){
-        const u=(o.ubicacion||'').trim(); if(u && /^https?:/i.test(u)) return u;
-        const d=(o.direccion||'').trim(); const q=d?`${d}, Bogotá, Colombia`:(o.grupo||'AA Bogotá');
-        return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
-      }
+    // Mapa por iframe y enlace para abrir Maps
+    function embedURL(o){
+      let q=''; const u=(o.ubicacion||'').trim();
+      try{ if(u){ const url=new URL(u); if(url.hostname.includes('google.com')) q=url.searchParams.get('query')||url.searchParams.get('q')||''; } }catch{}
+      if(!q){ const d=(o.direccion||'').trim(); q=d?`${d}, Bogotá, Colombia`:(o.grupo||'AA Bogotá'); }
+      return 'https://www.google.com/maps?output=embed&q='+encodeURIComponent(q);
+    }
+    function mapClickURL(o){
+      const u=(o.ubicacion||'').trim(); if(u && /^https?:/i.test(u)) return u;
+      const d=(o.direccion||'').trim(); const q=d?`${d}, Bogotá, Colombia`:(o.grupo||'AA Bogotá');
+      return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
+    }
 
-      function card(o){
-        const contacto = linkifyContact(o.contacto);
-        return `<article class="aa-card">
-          <div class="aa-title">🏷️ ${esc(o.grupo||'(Sin nombre)')}</div>
-          ${row('🗺️','Distrito',  esc(o.distrito))}
-          ${row('📍','Dirección', esc(o.direccion))}
-          ${row('📅','Reuniones', esc(o.reuniones))}
-          ${row('📞','Número de contacto', contacto)}
-          <div class="aa-mapwrap"><iframe class="aa-map" src="${escAttr(embedURL(o))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" aria-label="Mapa de ubicación"></iframe></div>
-          <div class="aa-cta"><a class="aa-ir" href="${escAttr(mapClickURL(o))}" target="_blank" rel="noopener">🗺️ IR</a></div>
-        </article>`;
-      }
+    // === Compartir por WhatsApp (bonito y sin entidades) ===
+    function buildShareText(o, irURL){
+      const L = [];
+      L.push(`${E.compass} AA Bogotá ${EN_DASH} ${cleanSharePiece(o.grupo || '(Sin nombre)')}`);
+      if (o.direccion) L.push(`${E.pin} Dirección: ${cleanSharePiece(o.direccion)}`);
+      if (o.distrito)  L.push(`${E.map} Distrito: ${cleanSharePiece(o.distrito)}`);
+      if (o.reuniones) L.push(`${E.cal} Reuniones: ${cleanSharePiece(o.reuniones)}`);
+      if (o.contacto)  L.push(`${E.phone} Contacto: ${cleanSharePiece(o.contacto)}`);
+      L.push(`${E.map} Mapa: ${irURL}`);
+      return L.join('\n');
+    }
+    function buildWhatsAppURL(o, irURL){
+      const txt = buildShareText(o, irURL);
+      return 'https://wa.me/?text=' + encodeURIComponent(txt);
+    }
 
-      function showNoResults(term){
-        cnt.textContent = `No encontramos grupos para “${term}”`;
-        err.style.display = 'none';
-        out.innerHTML = '';
-      }
+    // Tarjeta + botones IR y Compartir
+    function card(o){
+      const contacto = linkifyContact(o.contacto);
+      const embed = embedURL(o);
+      const irURL = mapClickURL(o);
+      const waURL = buildWhatsAppURL(o, irURL);
 
-      function render(term){
-        clearTimeout(deb);
-        if(term.length < MIN_CHARS){
-          out.innerHTML=''; stopLoading(); cnt.textContent='Escribe para buscar.'; err.style.display='none'; return;
+      return `<article class="aa-card">
+        <div class="aa-title">🏷️ ${esc(o.grupo||'(Sin nombre)')}</div>
+        ${row('🗺️','Distrito',  esc(o.distrito))}
+        ${row('📍','Dirección', esc(o.direccion))}
+        ${row('📅','Reuniones', esc(o.reuniones))}
+        ${row('📞','Número de contacto', contacto)}
+        <div class="aa-mapwrap"><iframe class="aa-map" src="${escAttr(embed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" aria-label="Mapa de ubicación"></iframe></div>
+        <div class="aa-cta">
+          <a class="aa-ir" href="${escAttr(irURL)}" target="_blank" rel="noopener">🗺️ IR</a>
+          <a class="aa-share" href="${escAttr(waURL)}" target="_blank" rel="noopener" aria-label="Compartir por WhatsApp">📤 Compartir</a>
+        </div>
+      </article>`;
+    }
+
+    function showNoResults(term){
+      cnt.textContent = `No encontramos grupos para “${term}”`;
+      err.style.display = 'none';
+      out.innerHTML = '';
+    }
+
+    function render(term){
+      clearTimeout(deb);
+      if(term.length < MIN_CHARS){
+        out.innerHTML=''; stopLoading(); cnt.textContent='Escribe para buscar.'; err.style.display='none'; return;
+      }
+      deb=setTimeout(async ()=>{
+        const id=++reqId;
+        if(ctl) ctl.abort();
+        ctl = new AbortController();
+        startLoading();
+        try{
+          const data = await buscar(term, ctl.signal);
+          if(id!==reqId) return;
+          if(!data || data.ok!==true) throw new Error('Respuesta inválida');
+          const arr = data.results || [];
+          stopLoading();
+          if(!arr.length) { showNoResults(term); return; }
+          out.innerHTML = arr.map(card).join('');
+          cnt.textContent = `Resultados: ${arr.length}`;
+          err.style.display='none';
+        }catch(e){
+          if (e.name === 'AbortError' || /aborted/i.test(e.message)) return;
+          stopLoading();
+          cnt.textContent = 'No pudimos consultar la base ahora. Toca para reintentar.';
+          err.style.display='none';
+          out.innerHTML='';
         }
-        deb=setTimeout(async ()=>{
-          const id=++reqId;
-          if(ctl) ctl.abort();
-          ctl = new AbortController();
-          startLoading();
-          try{
-            const data = await buscar(term, ctl.signal);
-            if(id!==reqId) return; // respuesta vieja
-            if(!data || data.ok!==true) throw new Error('Respuesta inválida');
-            const arr = data.results || [];
-            stopLoading();
-            if(!arr.length) { showNoResults(term); return; }
-            out.innerHTML = arr.map(card).join('');
-            cnt.textContent = `Resultados: ${arr.length}`;
-            err.style.display='none';
-          }catch(e){
-            // Ignora abortos por tecleo rápido
-            if (e.name === 'AbortError' || /aborted/i.test(e.message)) return;
-            stopLoading();
-            cnt.textContent = 'No pudimos consultar la base ahora. Toca para reintentar.';
-            err.style.display='none';
-            out.innerHTML='';
-          }
-        }, 220);
-      }
+      }, 220);
+    }
 
-      q.addEventListener('input', ()=>render(q.value.trim()));
-      clearBtn.addEventListener('click', ()=>{ q.value=''; render(''); q.focus(); });
-    });
-  })();
-  </script>
+    q.addEventListener('input', ()=>render(q.value.trim()));
+    clearBtn.addEventListener('click', ()=>{ q.value=''; render(''); q.focus(); });
+  });
+})();
+</script>
 
-
-
+  
+  
 </div>
 
 <style>
@@ -522,12 +602,9 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
   }
 </style>
 
-<!-- Estilo fondo blanco: fuerza modo claro dentro del panel -->
+<!--estilo fondo blanco (modo claro forzado dentro del panel)-->
 <style>
-  /* Aplica esquema claro al panel y a todos sus hijos */
   .aa-panel, .aa-panel * { color-scheme: light !important; }
-
-  /* Colores explícitos para evitar inversión en auto–dark */
   .aa-panel,
   .aa-panel .aa-card,
   .aa-panel .aa-input,
@@ -539,28 +616,33 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
     color: #0f172a !important;
     border-color: #e5e7eb !important;
   }
-
-  /* Placeholder visible */
   .aa-panel .aa-input::placeholder { color: #6b7280 !important; }
-
-  /* Autofill (Android/iOS) legible */
   .aa-panel input:-webkit-autofill {
     -webkit-text-fill-color: #0f172a !important;
-    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
-    box-shadow: 0 0 0 1000px #fff inset !important;
+    -webkit-box-shadow: 0 0 0px 1000px #fff inset !important;
+    box-shadow: 0 0 0px 1000px #fff inset !important;
     caret-color: #0f172a !important;
   }
-
-  /* Tarjetas y botón limpiar coherentes */
   .aa-panel .aa-clear { background:#fff !important; }
   .aa-panel .aa-card  { border:1px solid #e5e7eb !important; box-shadow: 0 2px 12px rgba(15,23,42,.04) !important; }
-
-  /* Mensaje de error legible */
   .aa-panel #aa-err { background:#ffe8e8 !important; border-color:#f2b1b1 !important; color:#8a1c1c !important; }
-
-  /* Evita que algunos navegadores apliquen filtros al iframe del mapa */
   .aa-panel iframe { filter: none !important; }
 </style>
+
+
+  <!--Botón: Ir al directorio completo-->
+  <div class="aa-footer">
+    <a class="aa-fullbtn" href="https://www.aabogota.com/p/reuniones-virtuales-grupos-aa-bogota.html" rel="noopener" target="_blank">
+      📚 Ir al directorio completo
+    </a>
+  </div>
+</div>
+
+
+
+
+
+
 ```
 
 #done
