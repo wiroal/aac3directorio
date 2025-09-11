@@ -336,9 +336,6 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
 <!--Empieza el buscador-->
 
 
-<!--Empieza el buscador-->
-
-
 <!--PANEL con borde azul-->
 <div class="aa-panel">
   <!--Buscador AA Bogotá – versión “bonita” con emojis-->
