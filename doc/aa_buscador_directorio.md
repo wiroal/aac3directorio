@@ -636,6 +636,119 @@ Reemplaza el bloque actual por este. Ya incluye el arreglo del mapa previo y usa
 </div>
 
 
+# Botón desplegar listado completo de grupos
+
+
+<!-- === Directorio AA con botón "Desplegar todos los grupos" === -->
+<div id="aa-directorio">
+
+  <!-- Botón -->
+  <div class="aa-dir-actions">
+    <button id="aa-dir-toggle" class="aa-btn" aria-expanded="false" aria-controls="aa-dir-panel">
+      ⚑ Desplegar todos los grupos
+    </button>
+  </div>
+
+  <!-- Panel colapsable (inicia cerrado) -->
+  <div id="aa-dir-panel" class="aa-collapse" aria-hidden="true">
+    <!-- TU TABLA AQUÍ: pega tu <style> + <table> + "Actualizado" + enlace PDF tal como lo tienes -->
+    <style>
+      /* ====== Estilos de la tabla (los tuyos) ====== */
+      table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0px 0px 10px rgba(0,0,0,0.1); }
+      th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-family: 'Josefin Sans', sans-serif; font-size: x-small; }
+      th { background-color: #0073aa; color: white; }
+      tr:nth-child(even) { background-color: #f9f9f9; }
+      th:nth-child(1), td:nth-child(1) { width: 8%; }
+      th:nth-child(2), td:nth-child(2) { width: 20%; }
+      th:nth-child(3), td:nth-child(3) { width: 24%; }
+      th:nth-child(4), td:nth-child(4) { width: 28%; }
+      th:nth-child(5), td:nth-child(5) { width: 12%; }
+      th:nth-child(6), td:nth-child(6) { width: 8%; text-align: center; }
+    </style>
+
+    <!--Empieza el directorio (tu tabla original)-->
+    <table> ... TODAS TUS FILAS AQUÍ ... </table>
+    <i>Actualizado: 2 de septiembre de 2025</i>
+    <div style="text-align: center;">
+      <b><span style="color: #0b5394; font-size: large;">
+        <a href="https://drive.google.com/file/d/1lIv8t2odf67rS3GFhcFR_DFSw8YaR9fu/view?usp=drive_link" target="_blank">Descargar directorio en PDF</a>
+      </span></b>
+    </div>
+    <!--Fin de tu tabla-->
+  </div>
+</div>
+
+<!-- ====== Estilos del botón y del colapsable ====== -->
+<style>
+  #aa-directorio { margin: 1rem 0; }
+  .aa-dir-actions { display: flex; justify-content: center; margin-bottom: .5rem; }
+  .aa-btn {
+    appearance: none; border: 0; cursor: pointer;
+    padding: .8rem 1.2rem; border-radius: 999px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Josefin Sans", sans-serif;
+    font-weight: 600; letter-spacing: .2px;
+    background: linear-gradient(135deg,#0b5394,#0073aa);
+    color: #fff; box-shadow: 0 6px 18px rgba(11,83,148,.25);
+    transition: transform .12s ease, box-shadow .2s ease, filter .2s ease;
+  }
+  .aa-btn:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 8px 22px rgba(11,83,148,.28); }
+  .aa-btn:active { transform: translateY(0); }
+
+  /* Panel colapsable con animación */
+  .aa-collapse {
+    overflow: hidden;
+    max-height: 0;                 /* inicia cerrado */
+    transition: max-height .45s ease;
+  }
+  .aa-collapse.is-open {
+    /* max-height se ajusta por JS al contenido */
+  }
+</style>
+
+<!-- ====== Lógica: abrir/cerrar ====== -->
+<script>
+  (function () {
+    var btn   = document.getElementById('aa-dir-toggle');
+    var panel = document.getElementById('aa-dir-panel');
+
+    // Cerrar por defecto
+    function closePanel() {
+      panel.classList.remove('is-open');
+      panel.style.maxHeight = '0px';
+      panel.setAttribute('aria-hidden','true');
+      btn.setAttribute('aria-expanded','false');
+      btn.textContent = '⚑ Desplegar todos los grupos';
+    }
+
+    // Abrir con altura automática animada
+    function openPanel() {
+      panel.classList.add('is-open');
+      panel.style.maxHeight = panel.scrollHeight + 'px';
+      panel.setAttribute('aria-hidden','false');
+      btn.setAttribute('aria-expanded','true');
+      btn.textContent = '▾ Ocultar grupos';
+    }
+
+    // Toggle
+    btn.addEventListener('click', function () {
+      var isOpen = panel.classList.contains('is-open');
+      if (isOpen) { closePanel(); }
+      else { openPanel(); }
+    });
+
+    // Recalcular altura si cambia el contenido (p.ej., imágenes, fuentes)
+    window.addEventListener('resize', function(){
+      if (panel.classList.contains('is-open')) {
+        panel.style.maxHeight = panel.scrollHeight + 'px';
+      }
+    });
+
+    // Inicia cerrado
+    closePanel();
+  })();
+</script>
+<!-- === Fin Directorio AA con botón === -->
+
 
 
 
