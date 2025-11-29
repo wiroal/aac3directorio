@@ -66,7 +66,7 @@ En `Code.gs`, cambia el bloque de configuración y **sube la versión** (para id
 
 ```js
 /************** CONFIG **************/
-const CSV_FILE_ID = '1xE_KQLO7hEDHDGhnYU0mnxG2tMA-Oo_R'; // <--- NUEVO
+const CSV_FILE_ID = '1xE_KQLO7hEDHDXXXXXXXA-Oo_R'; // <--- NUEVO
 const MAX_RESULTS = 100;
 const SEARCH_IN   = ['grupo','direccion','distrito','reuniones','contacto'];
 const API_VERSION = '2025-11-29'; // <--- actualiza (fecha sugerida)
@@ -93,12 +93,12 @@ Deberías ver: `"ok":true`, `"sizeBytes">0`, `"apiVersion":"2025-11-29"` y `char
 
 - **Muestra (encabezados y 1ª fila):**
 ```
-<EXEC_URL>?debug=sample&file=1xE_KQLO7hEDHDGhnYU0mnxG2tMA-Oo_R
+<EXEC_URL>?debug=sample&file=1xE_KQLO7XXXXG2tMA-Oo_R
 ```
 
 - **Búsqueda controlada:**
 ```
-<EXEC_URL>?q=decima&min=1&file=1xE_KQLO7hEDHDGhnYU0mnxG2tMA-Oo_R
+<EXEC_URL>?q=decima&min=1&file=1xE_KQLO7XXXXXXXtMA-Oo_R
 ```
 
 > Si estos 3 funcionan, el backend **sí está leyendo** la base. Si la página no busca, es **caché del front** o un error de URL/ID en el HTML.
