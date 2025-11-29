@@ -10,7 +10,7 @@
 
 Link de Google Drive (tipo archivo):
 ```
-https://drive.google.com/file/d/1xE_KQLO7hEDHDGhnYU0mnxG2tMA-Oo_R/view?usp=drive_link
+https://drive.google.com/file/d/1xE_XXXXXXXXXXX-Oo_R/view?usp=drive_link
 ```
 **FILE_ID** = lo que está **entre** `/d/` y `/view`:
 
@@ -37,8 +37,8 @@ Cambia **solo** esta constante:
 ```html
 <script>
 (function(){
-  const API_URL = 'https://script.google.com/macros/s/AKfycbx2RypJ1kwXfKMuX8_c0Xka5YHJQUPDQZ2_fX-stgZlmFzCtHAsJTFqw9o2kwZe6Zaf/exec';
-  const CSV_ID  = '1xE_KQLO7hEDHDGhnYU0mnxG2tMA-Oo_R'; // <--- NUEVO
+  const API_URL = 'https://script.google.com/macros/s/AKfXXXXXXXXXXXX-stgZlmFzCtHAsJTFqw9o2kwZe6Zaf/exec';
+  const CSV_ID  = '1xE_KQLO7hEDHXXXXXXXXtMA-Oo_R'; // <--- NUEVO
   const MIN_CHARS = 2;
 
   function buildURL(term){
